@@ -1,148 +1,307 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
-#define MATRIX_SIZE 4
-
-struct level {
-    int level;
-    char question[MATRIX_SIZE][MATRIX_SIZE];
-    int answer_x[5];
-    int answer_y[5];
-    struct level* next;
+// Define cell structure
+struct Cell
+{
+    char content; // '-' for unrevealed, '1' for one mine nearby, '*' for mine
+    int hasBomb;  // 1 if the cell has a bomb, 0 otherwise
+    int bombHit;  // 1 if a bomb has been hit, 0 otherwise
+    struct Cell *next;
 };
-typedef struct level Node;
-Node *head = NULL;
 
-Node *create_Node(int lev, char ques[MATRIX_SIZE][MATRIX_SIZE]) {
-    Node *temp;
-    temp = malloc(sizeof(Node));
-    if (temp == NULL) {
-        printf("Memory not allocated");
-        exit(0);
-    } else {
-        temp->level = lev;
-        for (int i = 0; i < MATRIX_SIZE; i++) {
-            for (int j = 0; j < MATRIX_SIZE; j++) {
-                temp->question[i][j] = ques[i][j];
+// Function prototypes
+// void printGrid(struct Cell* grid[], int rows, int cols);
+// void revealCell(struct Cell* grid[], int row, int col, int rows, int cols, int* gameOver, int* bombRevealed);
+// void placeBombs(struct Cell* grid[], int rows, int cols, int bombPositions[][2], int numBombs);
+// int allNonBombCellsRevealed(struct Cell* grid[], int rows, int cols);
+// void cleanup(struct Cell* grid[], int rows);
+
+// Function to create a new cell
+struct Cell *createCell(char content, int hasBomb)
+{
+    struct Cell *newCell = (struct Cell *)malloc(sizeof(struct Cell));
+    newCell->content = content;
+    newCell->hasBomb = hasBomb;
+    newCell->bombHit = 0;
+    newCell->next = NULL;
+    return newCell;
+}
+
+// Function to print the Minesweeper grid
+void printGrid(struct Cell *grid[], int rows, int cols)
+{
+    for (int i = 0; i < rows; i++)
+    {
+        struct Cell *current = grid[i];
+        while (current != NULL)
+        {
+            if (current->content == '-' || current->content == 'R' || current->content == 'X')
+            {
+                printf("%c ", current->content);
             }
-        }
-        
-        temp->next = temp; // Circular reference
-    }
-    return temp;
-}
-
-void add_Node(int lev, char ques[MATRIX_SIZE][MATRIX_SIZE]) {
-    Node* new = create_Node(lev, ques);
-    if (head == NULL) {
-        head = new;
-    } else {
-        Node* temp = head;
-        while (temp->next != head) {
-            temp = temp->next;
-        }
-        temp->next = new;
-        new->next = head;
-    }
-}
-
-void print_matrix(Node *current) {
-    for (int i = 0; i < MATRIX_SIZE; i++) {
-        for (int j = 0; j < MATRIX_SIZE; j++) {
-            if (current->question[i][j] == 'x') {
-                if (current->level == 1 || current->level == 2 || current->level == 3) {
-                    printf("* "); // Hide the mines
+            else
+            {
+                if (current->bombHit)
+                {
+                    printf("* "); // Reveal bombs
                 }
-            } else {
-                printf("%c ", current->question[i][j]);
+                else
+                {
+                    printf("- "); // Hide the bombs
+                }
             }
+            current = current->next;
         }
         printf("\n");
     }
 }
 
-bool allUncovered(Node *current,int lev) {
-    int ctr=0;
-    for (int i = 0; i < MATRIX_SIZE; i++) {
-        for (int j = 0; j < MATRIX_SIZE; j++) {
-            if (current->question[i][j] != 'o') {
-                ctr++;
+// Function to reveal a cell
+void revealCell(struct Cell *grid[], int row, int col, int rows, int cols, int *gameOver, int *bombRevealed)
+{
+    if (row >= 0 && row < rows && col >= 0 && col < cols)
+    {
+        struct Cell *cell = grid[row];
+        for (int i = 0; i < col; i++)
+        {
+            cell = cell->next;
+        }
+
+        if (cell->content == '-')
+        {
+            // Reveal the cell
+            if (cell->hasBomb)
+            {
+                // Bomb exploded
+                cell->content = 'X';
+                cell->bombHit = 1; // Mark the bomb as hit
+                *gameOver = 1;     // Set the game over flag
+                *bombRevealed = 1; // Set the bomb revealed flag
+            }
+            else
+            {
+                // TODO: Implement logic for revealing the cell based on game rules
+                // For now, just mark it as revealed
+                cell->content = 'R';
             }
         }
     }
-    if(ctr==lev)
-    return true;
-    else
-    return false;
 }
 
-void play_game(Node *head) {
-    int user_x, user_y;
-    Node *current = head;
-    int ctr2 = 0, ctr3 = 0;
-    
-    while (1) {
-        printf("LEVEL %d\n", current->level);
-        print_matrix(current);
+// Function to place bombs on the grid
+void placeBombs(struct Cell *grid[], int rows, int cols, int bombPositions[][2], int numBombs)
+{
+    for (int k = 0; k < numBombs; k++)
+    {
+        int row = bombPositions[k][0];
+        int col = bombPositions[k][1];
 
-        printf("Enter the x and y coordinates: ");
-        scanf("%d %d", &user_x, &user_y);
-        
-        if (user_x < 0 || user_x >= MATRIX_SIZE || user_y < 0 || user_y >= MATRIX_SIZE) {
-            printf("Invalid coordinates. Try again.\n");
-            continue;
+        struct Cell *cell = grid[row];
+        for (int i = 0; i < col; i++)
+        {
+            cell = cell->next;
         }
-        
-        if (current->question[user_x][user_y] == 'x') {
-            printf("You hit a mine! You'll return to Level 1.\n");
-            current = head;
-        } else if (current->question[user_x][user_y] == 'o') {
-            printf("You've already uncovered that cell. Try again.\n");
-        } else {
-            current->question[user_x][user_y] = 'o'; // Mark the cell as uncovered
-            
-            if (allUncovered(current,current->level)) {
-                printf("Good, you have passed level %d\n", current->level);
-                
-                if (current->level == 1) {
-                    if (ctr2 == 0) {
-                        char ques[4][4] = {{'*', '*', '*', '*'},
-                                          {'*', 'x', '*', 'x'},
-                                          {'*', '*', '*', '*'},
-                                          {'*', '*', '*', '*'}};
-                        int ans_x[2] = {1, 1};
-                        int ans_y[2] = {1, 3};
-                        add_Node(2, ques);
+
+        // Place bomb
+        if (!cell->hasBomb)
+        {
+            cell->hasBomb = 1;
+        }
+        else
+        {
+            k--; // Try placing bomb again
+        }
+    }
+}
+
+// Function to check if all non-bomb cells are revealed
+int allNonBombCellsRevealed(struct Cell *grid[], int rows, int cols)
+{
+    for (int i = 0; i < rows; i++)
+    {
+        struct Cell *current = grid[i];
+        while (current != NULL)
+        {
+            if (!current->hasBomb && current->content == '-')
+            {
+                return 0; // Not all non-bomb cells are revealed
+            }
+            current = current->next;
+        }
+    }
+    return 1; // All non-bomb cells are revealed
+}
+
+// Function to clean up memory
+void cleanup(struct Cell *grid[], int rows)
+{
+    for (int i = 0; i < rows; i++)
+    {
+        struct Cell *current = grid[i];
+        while (current != NULL)
+        {
+            struct Cell *temp = current;
+            current = current->next;
+            free(temp);
+        }
+    }
+}
+
+int main()
+{
+    
+
+    printf("***************************************************************\n");
+    printf("*               Welcome to Minesweeper Game                   *\n");
+    printf("*                                                             *\n");
+    printf("*          Uncover the non-bomb cells to win each level.      *\n");
+    printf("* Be careful, hitting a bomb will end the game on that level! *\n");
+    printf("*                                                             *\n");
+    printf("*                   Have fun and good luck!                   *\n");
+    printf("***************************************************************\n\n");
+
+    
+
+
+
+    // Initialize game parameters
+    int level = 1;
+    const int maxLevel = 3;
+    int rows = 2;
+    int cols = 2;
+    int numBombs = 1; // Adjust the number of bombs as needed
+    struct Cell *minesweeperGrid[rows];
+
+    // Bomb positions for each level
+    int bombPositions[][2] = {{1, 1}};
+
+    do
+    {
+        // Example Minesweeper grid using linked list
+        struct Cell *minesweeperGrid[rows];
+
+        // Initialize the grid with unrevealed cells
+        for (int i = 0; i < rows; i++)
+        {
+            minesweeperGrid[i] = createCell('-', 0);
+            struct Cell *current = minesweeperGrid[i];
+            for (int j = 1; j < cols; j++)
+            {
+                current->next = createCell('-', 0);
+                current = current->next;
+            }
+        }
+
+
+        if(level==2)
+        {
+             // Place bombs on the grid
+             numBombs = 2;
+            int bombPositions[][2] = {{1, 1},
+                                   {2,2}};
+             
+             placeBombs(minesweeperGrid, rows, cols, bombPositions, numBombs);
+        }
+        else if(level==3)
+        {
+             // Place bombs on the grid
+             numBombs = 3;
+            int bombPositions[][2] = {{1, 1},
+                                   {2,2},
+                                   {3,3}};
+             
+             placeBombs(minesweeperGrid, rows, cols, bombPositions, numBombs);
+        }
+        else
+         placeBombs(minesweeperGrid, rows, cols, bombPositions, numBombs);
+
+        // Game loop
+        int row, col;
+        int gameOver = 0;     // Game over flag
+        int bombRevealed = 0; // Bomb revealed flag
+        do
+        {
+            // Print the Minesweeper grid
+            printGrid(minesweeperGrid, rows, cols);
+
+            // Get user input
+            printf("Enter row and column to reveal (e.g., 0 1) (Min.=0 0 & Max.=%d %d): ", rows - 1, cols - 1);
+            scanf("%d %d", &row, &col);
+
+            if (row >= 0 && row < rows && col >= 0 && col < cols)
+            {
+                // Reveal the selected cell
+                revealCell(minesweeperGrid, row, col, rows, cols, &gameOver, &bombRevealed);
+
+                // Check if the game is over
+                if (gameOver)
+                {
+                    if (bombRevealed)
+                    {
+                        printf("Game Over! Bomb revealed.\n");
                     }
-                    ctr2 = 1;
-                    current = current->next;
-                } else if (current->level == 2) {
-                    if (ctr3 == 0) {
-                        char ques[4][4] = {{'*', '*', '*', '*'},
-                                          {'*', 'x', '*', 'x'},
-                                          {'*', 'x', '*', '*'},
-                                          {'*', '*', '*', '*'}};
-                        int ans_x[3] = {1, 1, 2};
-                        int ans_y[3] = {1, 3, 1};
-                        add_Node(3, ques);
-                        ctr3 = 1;
+                    else
+                    {
+                        printf("Congratulations! Level %d completed.\n", level);
                     }
-                    current = current->next;
-                } else if (current->level == 3) {
-                    printf("Congratulations, you have won the game!\n");
+
+                    // Ask the user for options after game over
+                    int choice;
+                    printf("1. Restart the current level\n");
+                    printf("2. Start from the first level\n");
+                    printf("3. Exit the game\n");
+                    printf("Enter your choice: ");
+                    scanf("%d", &choice);
+
+                    switch (choice)
+                    {
+                    case 1:
+                        // Restart the current level
+                        gameOver = 0;
+                        bombRevealed = 0;
+                        break;
+                    case 2:
+                        // Start from the first level
+                        level = 1;
+                        rows = 2;
+                        cols = 2;
+                        break;
+                    case 3:
+                        // Exit the game
+                        cleanup(minesweeperGrid, rows);
+                        return 0;
+                    default:
+                        printf("Invalid choice. Exiting the game.\n");
+                        cleanup(minesweeperGrid, rows);
+                        return 0;
+                    }
+                }
+
+                // Check if all non-bomb cells are revealed to promote to the next level
+                if (allNonBombCellsRevealed(minesweeperGrid, rows, cols))
+                {
+                    printf("Congratulations! All non-bomb cells revealed. Proceeding to the next level.\n");
                     break;
                 }
+
+                // TODO: Add game logic for revealing cells and checking for win conditions
             }
-        }
-    }
-}
+            else
+            {
+                printf("\nInvalid Location\n\n");
+            }
 
-int main() {
-    char ques[4][4] = {{'*', '*'},
-                      {'*', 'x'}};
+        } while (1); // Change the loop condition based on game logic
 
-    add_Node(1, ques);
-    play_game(head);
+        // Increase the level and adjust rows and cols
+        level++;
+        rows += 1;
+        cols += 1;
+
+    } while (level <= maxLevel);
+
+    cleanup(minesweeperGrid, rows);
+
     return 0;
 }
