@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+int user_score = 0;
 // Define cell structure
 struct Cell
 {
@@ -9,13 +10,6 @@ struct Cell
     int bombHit;  // 1 if a bomb has been hit, 0 otherwise
     struct Cell *next;
 };
-
-// Function prototypes
-// void printGrid(struct Cell* grid[], int rows, int cols);
-// void revealCell(struct Cell* grid[], int row, int col, int rows, int cols, int* gameOver, int* bombRevealed);
-// void placeBombs(struct Cell* grid[], int rows, int cols, int bombPositions[][2], int numBombs);
-// int allNonBombCellsRevealed(struct Cell* grid[], int rows, int cols);
-// void cleanup(struct Cell* grid[], int rows);
 
 // Function to create a new cell
 struct Cell *createCell(char content, int hasBomb)
@@ -47,7 +41,7 @@ void printGrid(struct Cell *grid[], int rows, int cols)
                     printf("* "); // Reveal bombs
                 }
                 else
-                {
+                {   
                     printf("- "); // Hide the bombs
                 }
             }
@@ -148,23 +142,9 @@ void cleanup(struct Cell *grid[], int rows)
     }
 }
 
-int main()
+int game_logic()
 {
     
-
-    printf("***************************************************************\n");
-    printf("*               Welcome to Minesweeper Game                   *\n");
-    printf("*                                                             *\n");
-    printf("*          Uncover the non-bomb cells to win each level.      *\n");
-    printf("* Be careful, hitting a bomb will end the game on that level! *\n");
-    printf("*                                                             *\n");
-    printf("*                   Have fun and good luck!                   *\n");
-    printf("***************************************************************\n\n");
-
-    
-
-
-
     // Initialize game parameters
     int level = 1;
     const int maxLevel = 3;
@@ -233,13 +213,17 @@ int main()
             {
                 // Reveal the selected cell
                 revealCell(minesweeperGrid, row, col, rows, cols, &gameOver, &bombRevealed);
-
+                  
                 // Check if the game is over
                 if (gameOver)
                 {
                     if (bombRevealed)
                     {
-                        printf("Game Over! Bomb revealed.\n");
+                        printf("You have chosen a bomb\n");
+                        user_score -= 5;
+                        printf("--------------------\n");
+                        printf("|Current Score = %d|\n",user_score);
+                        printf("--------------------\n");
                     }
                     else
                     {
@@ -248,9 +232,9 @@ int main()
 
                     // Ask the user for options after game over
                     int choice;
-                    printf("1. Restart the current level\n");
-                    printf("2. Start from the first level\n");
-                    printf("3. Exit the game\n");
+                   re: printf("1.Continue the current level\n");
+                    printf("2.Start from the beginning\n");
+                    printf("3.Quit the game\n");
                     printf("Enter your choice: ");
                     scanf("%d", &choice);
 
@@ -263,25 +247,33 @@ int main()
                         break;
                     case 2:
                         // Start from the first level
-                        level = 1;
-                        rows = 2;
-                        cols = 2;
+                        cleanup(minesweeperGrid, rows);
+                        game_logic();
                         break;
                     case 3:
                         // Exit the game
                         cleanup(minesweeperGrid, rows);
                         return 0;
                     default:
-                        printf("Invalid choice. Exiting the game.\n");
-                        cleanup(minesweeperGrid, rows);
-                        return 0;
+                        printf("Invalid choice.\nChoose again\n");
+                        //cleanup(minesweeperGrid, rows);
+                        goto re;
+                        break;
                     }
                 }
+                else
+                {
+                    user_score +=10;
+                    printf("--------------------\n");
+                    printf("|Current Score = %d|\n",user_score);
+                    printf("--------------------\n");
+                }
+                
 
                 // Check if all non-bomb cells are revealed to promote to the next level
                 if (allNonBombCellsRevealed(minesweeperGrid, rows, cols))
                 {
-                    printf("Congratulations! All non-bomb cells revealed. Proceeding to the next level.\n");
+                    printf("CONGRATULATIONS! All non-bomb cells revealed.\n");
                     break;
                 }
 
@@ -289,7 +281,7 @@ int main()
             }
             else
             {
-                printf("\nInvalid Location\n\n");
+                printf("\nInvalid Location\nPlease enter again.\n\n");
             }
 
         } while (1); // Change the loop condition based on game logic
@@ -300,8 +292,27 @@ int main()
         cols += 1;
 
     } while (level <= maxLevel);
-
+    printf("You are exiting the Game at SCORE : %d",user_score);
+    
     cleanup(minesweeperGrid, rows);
+   
+}
+
+
+int main()
+{
+    
+
+    printf("***************************************************************\n");
+    printf("*               Welcome to Minesweeper Game                   *\n");
+    printf("*                                                             *\n");
+    printf("*          Uncover the non-bomb cells to win each level.      *\n");
+    printf("* Be careful, hitting a bomb will end the game on that level! *\n");
+    printf("*                                                             *\n");
+    printf("*                   Have fun and good luck!                   *\n");
+    printf("***************************************************************\n\n");
+
+    game_logic();
 
     return 0;
 }
